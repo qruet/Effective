@@ -7,6 +7,8 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.fluid.FlowableFluid;
 //import net.minecraft.fluid.Fluids;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockRenderView;
@@ -25,7 +27,7 @@ public class WaterfallCloudGenerators {
     public static void tryAddGenerator(BlockRenderView world, BlockPos pos) {
         if (!Config.enableWaterfallParticles) return;
 
-        if (isInRange(pos) && (isPositionValid(world, pos) == true)) {
+        if (isInRange(pos) && (isPositionValid(world, pos))) {
             generators.add(new WaterfallCloudGenerator(MinecraftClient.getInstance().world, pos));
         }
     }
@@ -39,7 +41,7 @@ public class WaterfallCloudGenerators {
             generator.tick();
         }
 
-        generators.removeIf(waterfallCloudGenerator -> waterfallCloudGenerator.isOutofRange() || isPositionValid(waterfallCloudGenerator.world, waterfallCloudGenerator.blockPos) == false);
+        generators.removeIf(waterfallCloudGenerator -> waterfallCloudGenerator.isOutofRange() || !isPositionValid(waterfallCloudGenerator.world, waterfallCloudGenerator.blockPos));
     }
 
     private static boolean isInRange(BlockPos pos) {
@@ -47,59 +49,15 @@ public class WaterfallCloudGenerators {
         return client.player != null && Math.sqrt(pos.getSquaredDistance(client.player.getBlockPos())) < client.options.viewDistance * 16f;
     }
 
-    public static boolean isPositionValid(BlockRenderView world, BlockPos pos) {
-        final boolean hasAir = WaterfallCloudGenerators.hasAirNeighbors(world, pos);
-        final int tallWater = (int) waterfallHeight;
+    private static boolean isPositionValid(BlockRenderView world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
         BlockState above = world.getBlockState(pos.up());
-        final FluidState aboveFluidState = above.getFluidState();
 
-        if (state.getFluidState().isEqualAndStill(Fluids.WATER) && hasAir) {
-            if (above.isOf(Blocks.WATER) && !(aboveFluidState.isStill())) { 
-                if (aboveFluidState.get(FlowableFluid.FALLING) && aboveFluidState.getHeight() >= 0.77F) {
-                    for (int i = -5; i <= 5; i++) {
-                        if (world.getBlockState(pos.add(i, tallWater, i)).isOf(Blocks.WATER) && world.getBlockState(pos.add(i, tallWater, i)).getFluidState().get(FlowableFluid.FALLING)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        if (state.isOpaqueFullCube(world, pos) && above.isOf(Blocks.WATER) && !(aboveFluidState.isStill()) && hasAir) {
-            if (aboveFluidState.get(FlowableFluid.FALLING) && aboveFluidState.getHeight() >= 0.77F) { 
-                for (int i = -5; i <= 5; i++) {
-                    if (world.getBlockState(pos.add(i, tallWater, i)).isOf(Blocks.WATER) && world.getBlockState(pos.add(i, tallWater, i)).getFluidState().get(FlowableFluid.FALLING)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        if (state.getFluidState().isEqualAndStill(Fluids.WATER) && hasAir){
-            for (int i = -1; i <= 1 ; i++){
-                if (i ==0){continue;}
-                for (int j = 1; j <=10; j++){
-                    for (int k = -2; k <= 2 ; k++){
-                    if (world.getBlockState(pos.add(i,j,k)).getFluidState().isEqualAndStill(Fluids.WATER) && isPositionValid(world, pos.add(i,j,i))){
-                        return true;
-                        }
-                    if (world.getBlockState(pos.add(i,j,k)).isOf(Blocks.WATER) && !world.getBlockState(pos.add(i,j,i)).getFluidState().isStill()){
-                        return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }  
-
-    private static boolean hasAirNeighbors(BlockRenderView world, BlockPos origin) {
-        for (int i = -1; i <= 1; i++) {
-            if (i == 0){continue;}
-            if (world.getBlockState(origin.add(i, 1, i)).isAir()) {
-                return true;
-            }
-        }
-        return false;
+        return state.isOf(Blocks.WATER) && state.getFluidState().isStill()
+                && above.isOf(Blocks.WATER) && !above.getFluidState().isStill()
+                && above.getFluidState().contains(FlowableFluid.FALLING)
+                && above.getFluidState().get(FlowableFluid.FALLING)
+                && above.getFluidState().getHeight() >= 0.77f;
     }
 
     public static final class WaterfallCloudGenerator {
@@ -116,7 +74,7 @@ public class WaterfallCloudGenerators {
         }
 
         public void tick() {
-            if (world.isPlayerInRange(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 300f) && isPositionValid(world, blockPos) == true) {
+            if (world.isPlayerInRange(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 300f) && isPositionValid(world, blockPos)) {
                 if (world.getTime() % 11 == 0) {
                     world.playSound(blockPos.getX(), blockPos.getY(), blockPos.getZ(),
                             Effective.AMBIENCE_WATERFALL, SoundCategory.AMBIENT,
